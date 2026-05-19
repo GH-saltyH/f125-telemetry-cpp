@@ -1,6 +1,9 @@
 
 <img width="2121" height="993" alt="samples" src="https://github.com/user-attachments/assets/0dc69fee-8c00-48b4-a7f2-804aeaa197b4" />
 
+* **[Official] F1 25 Data Output spec**
+*(https://forums.ea.com/t5/s/tghpe58374/attachments/tghpe58374/f1-games-game-info-hub-en/61/4/Data%20Output%20from%20F1%2025%20v3.pdf)*
+
 ## ⬛ 프로젝트 디렉토리 구조 (Directory Structure)
 
 - **main.h**: F1 25 공식 텔레메트리 패킷 명세 규격에 맞춘 바이트 정렬 구조체 선언부 일체 포함.
