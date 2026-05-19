@@ -1,24 +1,15 @@
 ﻿#include "main.h"
+#include "WinManager.h"
 
-
-// 전역 관리 변수
+// =================================================================
+// main.h에 extern으로 지정된 전역 변수들의 실제 유일한 메모리 공간 정의
+// =================================================================
 std::atomic<bool> g_running(true);								// 프로그램 실행 상태 플래그
 SafeQueue<std::vector<char>> g_packetQueue;		// 수신된 패킷을 저장하는 스레드 안전 큐
 std::atomic<uint32_t> g_packetCount(0);					// 수신된 패킷 수 카운터
 
-// 소비자 스레드에서 화면에 노출할 스레드 안전 공유 변수 (디버그 프리뷰용)
-struct LiveDisplayMetrics {
-	uint32_t		frameId = 0;
-	float			sessionTime = 0.0f;
-	uint16_t		speed = 0;
-	int8_t			gear = 0;
-	uint16_t		rpm = 0;
-	float			tyrePressure[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-};
 std::mutex g_metricsMutex;
-LiveDisplayMetrics g_liveMetrics;			// 디버그 프리뷰용
-
-
+LiveDisplayMetrics g_liveMetrics;
 
 // 1. 네트워크 수신 스레드 (생산자)
 void UdpReceiverThread(int port) {
@@ -47,28 +38,27 @@ void UdpReceiverThread(int port) {
 		return;
 	}
 
-	// 소켓 논블로킹 타임아웃 설정 (종료 체크용)
 	DWORD timeout = 500;
 	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
 
-	std::vector<char> buffer(2048);
+	std::vector<char> buffer(4096);
 	sockaddr_in clientAddr{};
-	int clientLen = sizeof(clientAddr);
+	int clientSize = sizeof(clientAddr);
 
-	std::cout << "[Network] UDP 수신 시작 포트:" << port << " (F1 25 연결 대기 중...)\n";
+	std::cout << "[Network] UDP 수신 스레 가동 완료 (Port: " << port << ")\n";
 
 	while (g_running) {
-		int bytesRead = recvfrom(sock, buffer.data(), static_cast<int>(buffer.size()), 0, (sockaddr*)&clientAddr, &clientLen);
-		if (bytesRead > 0) {
-			std::vector<char> packetData(buffer.begin(), buffer.begin() + bytesRead);
-			g_packetQueue.push(packetData);		// 유실차단: 데이터 백엔드로 즉시 이관
+		int bytesReceived = recvfrom(sock, buffer.data(), (int)buffer.size(), 0, (sockaddr*)&clientAddr, &clientSize);
+		if (bytesReceived > 0) {
+			std::vector<char> packetData(buffer.begin(), buffer.begin() + bytesReceived);
+			g_packetQueue.push(packetData);
 			g_packetCount++;
 		}
 	}
 
 	closesocket(sock);
 	WSACleanup();
-	std::cout << "[Network] 스레드 종료.\n";
+	std::cout << "[Network] UDP 수신 스레드 종료.\n";
 }
 
 // 2. 데이터 가공 및 파일 출력 스레드 (소비자)
@@ -185,24 +175,135 @@ void DataProcessorThread() {
 	std::cout << "[Processor] 파일 저장 완료 및 스레드 종료.\n";
 }
 
-int main() {
-	// 초기 콘솔 설정 및 화면 초기 청소
-	std::system("cls");
-	std::cout << "F1 25 프로토타입 검증 프로그램 시작.\n";
-
+int main(int, char**) {
+	// WinSock 기반 UDP 백엔드 수신 스레드 가동
 	int targetPort = 20777;  // F1 25 기본 값은 20777
-
-	// 멀티스레드 파이프라인 가동
 	std::thread receiver(UdpReceiverThread, targetPort);
-	std::thread processor(DataProcessorThread);
 
-	// 사용자가 엔터를 누를 때까지 메인 스레드 대기
-	std::cin.get();
+	// Win32 윈도우 클래스 등록 및 창 생성
+	WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"F1 25 Telemetry Window", nullptr };
+	::RegisterClassExW(&wc);
+	HWND hWnd = ::CreateWindow(wc.lpszClassName, L"F1 25 High-Speed Graphics Dashboard Pro", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
+
+	// DX11 디바이스 초기화
+	if (!CreateDeviceD3D(hWnd)) {
+		CleanupDeviceD3D();
+		::UnregisterClassW(wc.lpszClassName, wc.hInstance);
+		g_running = false;
+		if (receiver.joinable ()) receiver.join();
+		return 1;
+	}
+
+	::ShowWindow(hWnd, SW_SHOWDEFAULT);
+	::UpdateWindow(hWnd);
+
+
+	// 4. ImGui 및 ImPlot 컨텍스트 바인딩
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImPlot::CreateContext();
+
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+	ImGui::StyleColorsDark();
+
+	ImGui_ImplWin32_Init(hWnd);
+	ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
+
+	// 대시보드 시스템 초기화 및 독립 프로토타입 창 생성 등록
+	WindowManager winManager;
+	winManager.AddWindow(std::make_unique<PlayerInputGraphView>());
+
+	// 무한 루프 플로우 통제 변수
+	bool done = false;
+	std::vector<char> rawPacket;
+	PacketHeader header{};
+	CarTelemetryData playerTelemetry{};
+
+	while (!done) {
+		// Win32 이벤트 메시지 루프 강제 펌핑
+		MSG msg;
+		while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE)) {
+			::TranslateMessage(&msg);
+			::DispatchMessage(&msg);
+			if (msg.message == WM_QUIT) done = true;
+		}
+		if (done) break;
+
+		// 창 크기가 변경되었을 때 렌더 타깃 리사이징 버퍼 갱신 처리
+		if (g_ResizeWidth != 0 && g_ResizeHeight != 0) {
+			CleanupRenderTarget();
+			g_pSwapChain->ResizeBuffers(0, g_ResizeWidth, g_ResizeHeight, DXGI_FORMAT_UNKNOWN, 0);
+			g_ResizeWidth = g_ResizeHeight = 0;
+			CreateRenderTarget();
+		}
+
+		// 7. 생산자-소비자 패킷 큐 스루풋 파싱 (스레드 세이프 보장 최신화)
+		while (g_packetQueue.size() > 0) {
+			if (g_packetQueue.pop(rawPacket, std::chrono::milliseconds(0))) {
+				if (rawPacket.size() < sizeof(PacketHeader)) continue;
+				std::memcpy(&header, rawPacket.data(), sizeof(PacketHeader));
+
+				// Packet ID 6 (Car Telemetry) 데이터 필터 패킹
+				if (header.m_packetId == 6 && rawPacket.size() >= sizeof(PacketCarTelemetryData)) {
+					PacketCarTelemetryData fullPacket;
+					std::memcpy(&fullPacket, rawPacket.data(), sizeof(PacketCarTelemetryData));
+					if (header.m_playerCarIndex < 22) {
+						playerTelemetry = fullPacket.m_carTelemetryData[header.m_playerCarIndex];
+					}
+				}
+			}
+		}
+
+		// 안전 장치: 세션 타임 가비지 예외 필터 처리
+		float currentSessionTime = header.m_sessionTime;
+		if (currentSessionTime < 0.0f || currentSessionTime > 50000.0f) {
+			// 아직 게임 연결 전이거나 가비지 값일 경우 흐르는 시간 임시 보정용 가상 틱 생성
+			static float dummyTime = 0.0f;
+			dummyTime += 0.016f;
+			currentSessionTime = dummyTime;
+
+			// 디버그 테스트용 더미 인풋 시뮬레이터 (사인/코사인 궤적 구동)
+			playerTelemetry.m_throttle = (sinf(dummyTime) + 1.0f) * 0.5f;
+			playerTelemetry.m_brake = (cosf(dummyTime * 1.5f) > 0.3f) ? (cosf(dummyTime * 1.5f)) : 0.0f;
+			playerTelemetry.m_steer = sinf(dummyTime * 0.8f);
+		}
+
+		// 8. ImGui/ImPlot 프레임 그리기 시작
+		ImGui_ImplDX11_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		// 외부 ImGui 라이브러리 정상 연동 확인용 공식 데모 도킹 창 출력 (X 버튼으로 탈착 가능)
+		ImGui::ShowDemoWindow();
+		ImPlot::ShowDemoWindow();
+
+		// 9. 독립 관리 창 총괄 렌더 가동
+		winManager.RenderAllWindows(playerTelemetry, currentSessionTime);
+
+		// 10. 백버퍼 스왑 및 화면 GPU 출력 서브밋
+		ImGui::Render();
+		const float clear_color_with_alpha[4] = { 0.10f, 0.10f, 0.12f, 1.0f }; //Moody Gray 백그라운드 색감
+		g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
+		g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color_with_alpha);
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+		g_pSwapChain->Present(1, 0); // VSync 걸어 60fps 고정으로 CPU/GPU 오버헤드 억제
+	}
+
+	// 11. 인프라 클린업 및 메모리 소멸 단계
 	g_running = false;
-
 	if (receiver.joinable()) receiver.join();
-	if (processor.joinable()) processor.join();
 
-	std::cout << "프로그램이 안전하게 종료되었습니다.  총 누적 수신 패킷: " << g_packetCount.load() << "\n";
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImPlot::DestroyContext();
+	ImGui::DestroyContext();
+
+	CleanupDeviceD3D();
+	::DestroyWindow(hWnd);
+	::UnregisterClassW(wc.lpszClassName, wc.hInstance);
+
 	return 0;
 }

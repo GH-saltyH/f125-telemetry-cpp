@@ -13,15 +13,105 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="헤더 파일\ImGui">
+      <UniqueIdentifier>{dd222d3e-b13d-4c6a-ba7b-4efac766c6e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\ImGui">
+      <UniqueIdentifier>{adf44464-fded-4d80-9d80-048b35646a2c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\ImGui\backends">
+      <UniqueIdentifier>{405b0ddd-1c77-4775-b87f-bc56a1328b32}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\ImGui\backends">
+      <UniqueIdentifier>{2eeef227-c85e-45bc-acea-b42c83c65922}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\ImPlot">
+      <UniqueIdentifier>{d553f4e3-9ec1-4eb5-bf36-446c58662636}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\ImPlot">
+      <UniqueIdentifier>{21e361c7-6816-43ff-b56f-b09c474dbdb4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\WinManager">
+      <UniqueIdentifier>{d9980755-2fb0-430b-a6a1-7e7bd5813324}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\WinManager">
+      <UniqueIdentifier>{4e1579c3-53d4-40af-8c9a-06315d2eff31}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="external\imgui\imconfig.h">
+      <Filter>헤더 파일\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\imgui\imgui.h">
+      <Filter>헤더 파일\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\imgui\imgui_internal.h">
+      <Filter>헤더 파일\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\imgui\imstb_rectpack.h">
+      <Filter>헤더 파일\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\imgui\imstb_textedit.h">
+      <Filter>헤더 파일\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\imgui\imstb_truetype.h">
+      <Filter>헤더 파일\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\imgui\backends\imgui_impl_dx11.h">
+      <Filter>헤더 파일\ImGui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="external\imgui\backends\imgui_impl_win32.h">
+      <Filter>헤더 파일\ImGui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="external\implot\implot.h">
+      <Filter>헤더 파일\ImPlot</Filter>
+    </ClInclude>
+    <ClInclude Include="external\implot\implot_internal.h">
+      <Filter>헤더 파일\ImPlot</Filter>
+    </ClInclude>
+    <ClInclude Include="WinManager.h">
+      <Filter>헤더 파일\WinManager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="external\imgui\imgui.cpp">
+      <Filter>소스 파일\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="external\imgui\imgui_draw.cpp">
+      <Filter>소스 파일\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="external\imgui\imgui_tables.cpp">
+      <Filter>소스 파일\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="external\imgui\imgui_widgets.cpp">
+      <Filter>소스 파일\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="external\imgui\backends\imgui_impl_dx11.cpp">
+      <Filter>소스 파일\ImGui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="external\imgui\backends\imgui_impl_win32.cpp">
+      <Filter>소스 파일\ImGui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="external\implot\implot.cpp">
+      <Filter>소스 파일\ImPlot</Filter>
+    </ClCompile>
+    <ClCompile Include="external\implot\implot_demo.cpp">
+      <Filter>소스 파일\ImPlot</Filter>
+    </ClCompile>
+    <ClCompile Include="external\implot\implot_items.cpp">
+      <Filter>소스 파일\ImPlot</Filter>
+    </ClCompile>
+    <ClCompile Include="WinManager.cpp">
+      <Filter>소스 파일\WinManager</Filter>
+    </ClCompile>
+    <ClCompile Include="external\imgui\imgui_demo.cpp">
+      <Filter>소스 파일\ImGui</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

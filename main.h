@@ -12,8 +12,21 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 
+// 그래픽 라이브러리
+#include <memory>
+#include <string>
+#include <d3d11.h>
+#include <tchar.h>
+
+
+// Dear ImGui / ImPlot
+#include "imgui.h"
+#include "imgui_impl_dx11.h"
+#include "imgui_impl_win32.h"
+#include "implot.h"
 
 #pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "d3d11.lib")       // 링커 에러(LNK2019) 방지를 위한 하드웨어 가속 라이브러리 등록
 
 // F1 25 공식 패킷 스펙 기준 바이트 정렬 (1바이트 단위 패킹)
 #pragma pack(push, 1)
@@ -829,6 +842,16 @@ struct MotionTelemetryData {
 	float speed;													// 차량 속도
 };
 
+// 소비자 스레드에서 화면에 노출할 스레드 안전 공유 변수 (디버그 프리뷰용)
+struct LiveDisplayMetrics {
+	uint32_t		frameId = 0;
+	float			sessionTime = 0.0f;
+	uint16_t		speed = 0;
+	int8_t			gear = 0;
+	uint16_t		rpm = 0;
+	float			tyrePressure[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+};
+
 #pragma pack(pop)
 
 // 스레드 안전한 큐 (Thread-Safe Queue) 구현
@@ -860,3 +883,16 @@ public:
 		return m_queue.size();
 	}
 };
+
+// 전역 관리 변수
+extern std::atomic<bool> g_running;
+extern SafeQueue<std::vector<char>> g_packetQueue;
+extern std::atomic<uint32_t> g_packetCount;
+
+extern std::mutex g_metricsMutex;
+extern LiveDisplayMetrics g_liveMetrics;			// 디버그 프리뷰용
+
+
+// 전방선언
+void UdpReceiverThread(int port);
+void TelemetryProcessorThread();
