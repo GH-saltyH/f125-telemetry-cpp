@@ -16,6 +16,8 @@ bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
 void CreateRenderTarget();
 void CleanupRenderTarget();
+
+// Win32 전역 WndProc 메시지 처리기 인터페이스 선언부
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 // 독립 인포그래픽 창 관리를 위한 인터페이스 및 관리자 클래스
@@ -31,15 +33,40 @@ public:
 	virtual void UpdateAndRender(const CarTelemetryData& telemetry, float sessionTime) = 0;
 };
 
+// OS 창 핸들 및 DX11 렌더 타깃 뷰포트 관리를 위한 구조체
+struct OSWindowInstance {
+	HWND hWnd = nullptr;
+	IDXGISwapChain* swapChain = nullptr;
+	ID3D11RenderTargetView* renderTargetView = nullptr;
+	ImGuiContext* imguiContext = nullptr;    // 창 마다 가질 독립적 UI 상태 컨텍스트
+	std::unique_ptr<IInfoWindow> uiView = nullptr;
+	UINT resizeWidth = 0;
+	UINT resizeHeight = 0;
+};;
+
 class WindowManager {
 private:
-	std::vector<std::unique_ptr<IInfoWindow>> m_windows;
+	// FIX: 단일 뷰포트 벡터에서 실제 OS 창 인스턴스 배열로 변경
+	std::vector<OSWindowInstance> m_osWindows;
+	ID3D11Device* m_pd3dDevice= nullptr;
+	ID3D11DeviceContext* m_pd3dDeviceContext = nullptr;
 public:
-	void AddWindow(std::unique_ptr<IInfoWindow> window) {
-		m_windows.push_back(std::move(window));
+	WindowManager(ID3D11Device* device, ID3D11DeviceContext* context)
+		: m_pd3dDevice(device), m_pd3dDeviceContext(context) {
 	}
+	~WindowManager() { CleanupAll(); }
 
-	void RenderAllWindows(const CarTelemetryData& telemetry, float sessionTime);
+	// FIX: 새로운 독립 창을 OS에 등록하고 띄우는 메서드로 고도화
+	void CreateNewAppWindow(const std::wstring& title, int width, int height, std::unique_ptr<IInfoWindow> view);
+
+	// 독립 창들을 순회하며 이벤트 메시지, ImGui 컨텍스트 스왑, 렌더 submit 총괄 처리하는 메서드로 고도화
+	void RenderAllIndependentWindows(const CarTelemetryData& telemetry, float sessionTime);
+
+	void CleanupAll();
+	bool HasActiveWindows() const { return !m_osWindows.empty(); }
+
+	// 유틸리티: WinProc 에서 개별 창 인스턴스를 찾을 수 있도록 포인터 반환
+	OSWindowInstance* FindInstanceByHWND(HWND hWnd);
 };
 
 // 플레이어 패달/휠 조작 입출력 플로팅 뷰 클래스
@@ -56,75 +83,3 @@ public:
 	void UpdateAndRender(const CarTelemetryData& telemetry, float sessionTime) override;
 };
 
-
-//
-//void CleanupRenderTarget() {
-//	if (g_mainRenderTargetView) { g_mainRenderTargetView->Release(); g_mainRenderTargetView = nullptr; }
-//}
-//
-//void CleanupDeviceD3D() {
-//	CleanupRenderTarget();
-//	if (g_pSwapChain) { g_pSwapChain->Release(); g_pSwapChain = nullptr; }
-//	if (g_pd3dDeviceContext) { g_pd3dDeviceContext->Release(); g_pd3dDeviceContext = nullptr; }
-//	if (g_pd3dDevice) { g_pd3dDevice->Release(); g_pd3dDevice = nullptr; }
-//}
-//
-//void CreateRenderTarget() {
-//	ID3D11Texture2D* pBackBuffer;
-//	g_pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
-//	g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_mainRenderTargetView);
-//	pBackBuffer->Release();
-//}
-//
-//
-//extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-//LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-//	if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam)) return true;
-//	switch (msg) {
-//	case WM_SIZE:
-//		if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED) {
-//			g_ResizeWidth = (UINT)LOWORD(lParam);
-//			g_ResizeHeight = (UINT)HIWORD(lParam);
-//		}
-//		return 0;
-//	case WM_SYSCOMMAND:
-//		if ((wParam & 0xFFF0) == SC_KEYMENU) return 0;
-//		break;
-//	case WM_DESTROY:
-//		::PostQuitMessage(0);
-//		return 0;
-//	}
-//	return ::DefWindowProcW(hWnd, msg, wParam, lParam);
-//}
-//
-//// -----------------------------------------------------------------
-//// 3. Win32 및 DX11 보일러플레이트 지원 함수 구현부
-//// -----------------------------------------------------------------
-//bool CreateDeviceD3D(HWND hWnd) {
-//	DXGI_SWAP_CHAIN_DESC sd;
-//	ZeroMemory(&sd, sizeof(sd));
-//	sd.BufferCount = 2;
-//	sd.BufferDesc.Width = 0;
-//	sd.BufferDesc.Height = 0;
-//	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-//	sd.BufferDesc.RefreshRate.Numerator = 60;
-//	sd.BufferDesc.RefreshRate.Denominator = 1;
-//	sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-//	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-//	sd.OutputWindow = hWnd;
-//	sd.SampleDesc.Count = 1;
-//	sd.SampleDesc.Quality = 0;
-//	sd.Windowed = TRUE;
-//	sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-//
-//	UINT createDeviceFlags = 0;
-//	D3D_FEATURE_LEVEL featureLevel;
-//	const D3D_FEATURE_LEVEL featureLevelArray[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0 };
-//	HRESULT res = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
-//	if (res == DXGI_ERROR_UNSUPPORTED)
-//		res = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
-//	if (res != S_OK) return false;
-//
-//	CreateRenderTarget();
-//	return true;
-//}
