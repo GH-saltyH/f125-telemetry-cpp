@@ -103,6 +103,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\backends;$(ProjectDir)external\implot</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -118,6 +119,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\backends;$(ProjectDir)external\implot</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -125,6 +127,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Core\GlobalState.h" />
+    <ClInclude Include="Core\SafeQueue.h" />
     <ClInclude Include="external\imgui\backends\imgui_impl_dx11.h" />
     <ClInclude Include="external\imgui\backends\imgui_impl_win32.h" />
     <ClInclude Include="external\imgui\imconfig.h" />
@@ -136,6 +140,8 @@
     <ClInclude Include="external\implot\implot.h" />
     <ClInclude Include="external\implot\implot_internal.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="Packets\F125Packets.h" />
+    <ClInclude Include="SubApps\PlayerInputGraphView\PlayerInputGraphView.h" />
     <ClInclude Include="WinManager.h" />
   </ItemGroup>
   <ItemGroup>
@@ -150,6 +156,7 @@
     <ClCompile Include="external\implot\implot_demo.cpp" />
     <ClCompile Include="external\implot\implot_items.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="SubApps\PlayerInputGraphView\PlayerInputGraphView.cpp" />
     <ClCompile Include="WinManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
