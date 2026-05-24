@@ -11,23 +11,33 @@ void PlayerInputGraphView::UpdateAndRender(const CarTelemetryData& telemetry, fl
 	// 사용자가 창을 드래그하면 자동으로 OS 창으로 분리됨
 	ImGui::SetNextWindowSize(ImVec2(800,350), ImGuiCond_FirstUseEver);
 
+
 	if (!ImGui::Begin(m_windowName.c_str(), &m_isOpen))
 	{
 		ImGui::End();
 		return;
 	}
+	// 전체 창 디자인
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.15f, 0.15f, 0.15f, 0.3f));
+
+	// 그래프 영역 배경 색상 설정
+	ImPlot::PushStyleColor(ImPlotCol_PlotBg, ImVec4(0.1f, 0.1f, 0.1f, 0.5f));
 
 	ImVec2 dynamicPlotSize = ImGui::GetContentRegionAvail();
 	
-	if (ImPlot::BeginPlot("##InputTracesPlot", dynamicPlotSize)) 
+
+	if (ImPlot::BeginPlot("##InputTracesPlot", dynamicPlotSize,
+		ImPlotFlags_NoTitle)) 
 	{
-		ImPlot::SetupAxes("Session Time (s)", "Value");
-		ImPlot::SetupAxisLimits(ImAxis_Y1, -1.1f, 1.1f, ImGuiCond_Always);
+		//ImPlot::SetupAxes("Session Time (s)", "Value");
+		ImPlot::SetupAxis(ImAxis_Y1, nullptr, ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_NoGridLines);
+		ImPlot::SetupAxisLimits(ImAxis_Y1, -0.03f, 1.03f, ImGuiCond_Always);
 
 		const float X_AXIS_RANGE = 10.0f;
-		float x_max = sessionTime;
+		float x_max = (sessionTime > X_AXIS_RANGE) ? sessionTime : X_AXIS_RANGE;
 		float x_min = (x_max > X_AXIS_RANGE) ? (x_max - X_AXIS_RANGE) : 0.0f;
 		// 데이터가 아예 없는 초기 상태여도 축이 흔들리지 않고 미리 선언된 범위로 고정
+		ImPlot::SetupAxis(ImAxis_X1, nullptr, ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_NoGridLines);
 		ImPlot::SetupAxisLimits(ImAxis_X1, x_min, x_max, ImGuiCond_Always);
 
 		ImPlotSpec spec;
@@ -57,5 +67,10 @@ void PlayerInputGraphView::UpdateAndRender(const CarTelemetryData& telemetry, fl
 
 		ImPlot::EndPlot();
 	}
+
+	// 스타일 복구 (pop)
+	ImPlot::PopStyleColor();
+	ImGui::PopStyleColor();
+
 	ImGui::End();
 }
