@@ -37,6 +37,27 @@
     <Filter Include="소스 파일\WinManager">
       <UniqueIdentifier>{4e1579c3-53d4-40af-8c9a-06315d2eff31}</UniqueIdentifier>
     </Filter>
+    <Filter Include="헤더 파일\SubApps">
+      <UniqueIdentifier>{192406c0-65cb-4d1d-be91-7bbf05174343}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\SubApps">
+      <UniqueIdentifier>{24448adb-ed65-4dcb-8683-456b63fa76e9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\SubApps\PlayerInputGraphView">
+      <UniqueIdentifier>{861189fc-9f25-48fe-9595-0f611d51818c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\SubApps\PlayerInputGraphView">
+      <UniqueIdentifier>{51064b01-42df-4a38-b5b7-463a2a782164}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\Core">
+      <UniqueIdentifier>{3af38e0f-28f9-4d70-a211-23910c70dfef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Core">
+      <UniqueIdentifier>{74b40abf-1500-485a-a5fc-147d12a4346c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\Packets">
+      <UniqueIdentifier>{7b524b55-253a-4a87-a98b-eb1dd6cc5ec1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
@@ -75,6 +96,18 @@
     <ClInclude Include="WinManager.h">
       <Filter>헤더 파일\WinManager</Filter>
     </ClInclude>
+    <ClInclude Include="SubApps\PlayerInputGraphView\PlayerInputGraphView.h">
+      <Filter>헤더 파일\SubApps\PlayerInputGraphView</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\SafeQueue.h">
+      <Filter>헤더 파일\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\GlobalState.h">
+      <Filter>헤더 파일\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Packets\F125Packets.h">
+      <Filter>헤더 파일\Packets</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -112,6 +145,9 @@
     </ClCompile>
     <ClCompile Include="external\imgui\imgui_demo.cpp">
       <Filter>소스 파일\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="SubApps\PlayerInputGraphView\PlayerInputGraphView.cpp">
+      <Filter>소스 파일\SubApps\PlayerInputGraphView</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
