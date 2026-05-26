@@ -1,5 +1,10 @@
 ﻿#include "WinManager.h"
 #include "SubApps/PlayerInputGraphView/PlayerInputGraphView.h"
+#include "IconsFontAwesome6.h"
+
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi.lib")
+
 //#include "imgui_internal.h"
 
 // D3D11 전역 변수 (ImGui backend 가 내부적으로 사용)
@@ -15,6 +20,8 @@ bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
 void CreateRenderTarget();
 void CleanupRenderTarget();
+void SetupViewportTransparency(ImGuiViewport* viewport);
+std::wstring GetWindowTitleW(HWND hWnd);
 
 // WindowManager 구현
 WindowManager::WindowManager() {}
@@ -23,6 +30,7 @@ void WindowManager::RegisterSubApp(const std::string& appName, SubAppDescriptor 
 {
 	m_subAppRegistry[appName] = std::move(desc);
 	m_subAppToggleStates[appName] = false;	// 초기 OFF
+	m_subAppLockStates[appName] = false;
 }
 
 void WindowManager::CreateMainWindow(const std::wstring& title, int width, int height)
@@ -66,6 +74,44 @@ void WindowManager::CreateMainWindow(const std::wstring& title, int width, int h
 	// Viewport 설정
 	io.ConfigViewportsNoAutoMerge = false;		// 창을 다시 메인으로 병합 허용
 	io.ConfigViewportsNoTaskBarIcon = false;	// 각 뷰포트 작업 표시줄 아이콘 표시
+
+	// 폰트 로드 (기본 폰트 + Font Awesome)
+
+	// 1. 기본폰트 (한글 + ASCII)
+	ImFontConfig fontConfig;
+	fontConfig.OversampleH = 2;
+	fontConfig.OversampleV = 1;
+
+	// 한글 범위 (on demand)
+	static const ImWchar korean_ranges[] = {
+		0x0020, 0x00FF,		// ASCII
+		0xAC00, 0xD7A3,		// 한글 완성형
+		0,
+	};
+
+	// 기본 폰트 로드 (한글 포함)
+	// io.Fonts->AddFontDefault();   // -> Cannot use MergeMode with an explicit reference size when the destination font used an implicit reference size
+	ImFontConfig baseConfig;
+	io.Fonts->AddFontFromFileTTF("c:\\windows\\fonts\\arial.ttf", 16.0f, &baseConfig, korean_ranges);
+
+	// Font Awesome 아이콘 병합
+	ImFontConfig iconsConfig;
+	iconsConfig.MergeMode = true;				// 기본 폰트에 병합
+	iconsConfig.PixelSnapH = true;			
+	iconsConfig.GlyphMinAdvanceX = 16.0f;		// 아이콘 최소 너비
+
+	static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+
+	// Font Awesome OTF 파일 경로 (프로젝트에 포함 필요)
+	io.Fonts->AddFontFromFileTTF(
+		"Fonts/Font Awesome 6 Free-Solid-900.otf",		//  경로 내에 있어야 함
+		16.0f,
+		&iconsConfig,
+		icons_ranges
+	);
+
+	// 폰트 아틀라스 빌드 (자동으로 처리됨)
+	// io.Fonts->Build();
 
 	ImGui::StyleColorsDark();
 
@@ -129,6 +175,26 @@ void WindowManager::RenderAllWindows(const CarTelemetryData& telemetry, float se
 		}
 
 		ImGui::SameLine();
+
+		// Lock / Unlock 버튼
+		bool& isLocked = m_subAppLockStates[appName];
+
+		if (isLocked) {
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
+			if (ImGui::Button(ICON_FA_LOCK)) {
+				isLocked = false;
+			}
+			ImGui::PopStyleColor();
+		}
+		else {
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+			if (ImGui::Button(ICON_FA_UNLOCK)) {
+				isLocked	= true;
+			}
+			ImGui::PopStyleColor();
+		}
+
+		ImGui::SameLine();
 		ImGui::TextUnformatted(appName.c_str());
 		ImGui::PopID();
 	}
@@ -153,7 +219,37 @@ void WindowManager::RenderAllWindows(const CarTelemetryData& telemetry, float se
 	// 사용자가 창을 드래그하면 ImGui 가 자동으로 OS 창 생성
 	for (auto& [appName, subApp] : m_activeSubApps) {
 		if (subApp && subApp->m_isOpen) {
+			
+			// Lock 상태 전달 (서브앱이 자신의 상태를 알 수 있도록)
+			auto LockIt = m_subAppLockStates.find(appName);
+			if (LockIt != m_subAppLockStates.end()) {
+				subApp->m_isLocked = LockIt->second;
+			}
+			else {
+				subApp->m_isLocked = false;
+			}
+
+			// 서브앱 스타일 적용
+			SubAppStyle style = subApp->GetStyle();
+
+			// 윈도우 배경색 설정
+			if (style.useWindowBackground) {
+				ImGui::PushStyleColor(ImGuiCol_WindowBg, style.windowBg);
+			}
+
+			// Viewport 배경 처리 (OS 창으로 분리될 때)
+			// ImGui 는 현재 윈도우가 어느 뷰포트에 속하는지 자동 추적
+			ImGuiViewport* viewport = ImGui::FindViewportByID(ImGui::GetID(appName.c_str()));
+			if (viewport && viewport->PlatformUserData) {
+				// 분리된 viewport 의 clear color 설정
+				// NOTE: ImGui 내부 API 이기 때문에 렌더링 전에 설정해야 함
+			}
 			subApp->UpdateAndRender(telemetry, sessionTime);
+
+			// 스타일 복원
+			if (style.useWindowBackground) {
+				ImGui::PopStyleColor();
+			}
 		}
 	}
 
@@ -195,6 +291,75 @@ void WindowManager::CleanupAll()
 bool WindowManager::IsMainWindowActive() const
 {
 	return m_mainHwnd && ::IsWindow(m_mainHwnd);
+}
+
+void WindowManager::ApplyDWMTransparency(HWND hwnd)
+{
+	if (!hwnd) return;
+
+	// 창 제목으로 서브앱 찾기
+	std::wstring wtitle = GetWindowTitleW(hwnd);
+	int size = ::WideCharToMultiByte(CP_UTF8, 0, wtitle.c_str(), -1,
+		nullptr, 0, nullptr, nullptr);
+	if (size == 0)return;
+
+	std::string utf8Title(size, 0);
+	::WideCharToMultiByte(CP_UTF8, 0, wtitle.c_str(), -1,
+		&utf8Title[0], size, nullptr, nullptr);
+	utf8Title.resize(size - 1);
+
+	auto it = m_activeSubApps.find(utf8Title);
+	if (it == m_activeSubApps.end()) return;
+
+	SubAppStyle style = it->second->GetStyle();
+
+	// Extended Window Style 조합
+	LONG exStyle = ::GetWindowLongW(hwnd, GWL_EXSTYLE);
+
+	// 레이어드 윈도우 
+	exStyle |= WS_EX_LAYERED;
+
+	// 오버레이 모드 설정
+	if (style.overlayMode.enabled) {
+		if (style.overlayMode.alwaysOnTop) {
+			exStyle |= WS_EX_TOPMOST;
+		}
+		if (style.overlayMode.clickThrough) {
+			exStyle |= WS_EX_TRANSPARENT;	// 마우스 이벤트 통과
+		}
+		if (style.overlayMode.noActivate) {
+			exStyle |= WS_EX_NOACTIVATE;		// 포커스 X
+		}
+	}
+
+	// DWM Blur Behind
+	DWM_BLURBEHIND bb = { 0 };
+	bb.dwFlags = DWM_BB_ENABLE | DWM_BB_BLURREGION;
+	bb.fEnable = TRUE;
+	bb.hRgnBlur = ::CreateRectRgn(0, 0, -1, -1);
+
+	HRESULT hr = ::DwmEnableBlurBehindWindow(hwnd, &bb);
+	if (bb.hRgnBlur) ::DeleteObject(bb.hRgnBlur);
+
+	// DWM 프레임 확장
+	MARGINS margins = { -1, -1, -1, -1 };
+	hr = ::DwmExtendFrameIntoClientArea(hwnd, &margins);
+
+	// 레이어드 윈도우 투명도 설정
+	BYTE alpha = (BYTE)style.overlayMode.opacity;
+	::SetLayeredWindowAttributes(hwnd, 0, alpha, LWA_ALPHA);
+
+	// 항상 위 설정 
+	if (style.overlayMode.enabled && style.overlayMode.alwaysOnTop) {
+		::SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+			SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+	}
+
+	::InvalidateRect(hwnd, nullptr, TRUE);
+	::UpdateWindow(hwnd);
+
+	std::cout << "[DWM] 오버레이 활성화: " << utf8Title
+		<< "   (투명도=" << (int)alpha << ")\n";
 }
 
 // D3D11 Helper 
@@ -270,6 +435,31 @@ void CleanupRenderTarget()
 		g_mainRenderTargetView->Release();
 		g_mainRenderTargetView = nullptr;
 	}
+}
+
+// 완전 투명 배경 쓸 때 -> DWM 은 성능 비용이 있음 (Windows 전용)
+void SetupViewportTransparency(ImGuiViewport* viewport)
+{
+	HWND hWnd = (HWND)viewport->PlatformHandle;
+
+	// DWM 투명도 활성화
+	MARGINS margins = { -1, -1, -1, -1 };
+	DwmExtendFrameIntoClientArea(hWnd, &margins);
+
+	// 윈도우 스타일 변경
+	LONG exStyle = GetWindowLong(hWnd, GWL_EXSTYLE);
+	SetWindowLong(hWnd, GWL_EXSTYLE, exStyle | WS_EX_LAYERED);
+	SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 0, LWA_COLORKEY);
+}
+
+std::wstring GetWindowTitleW(HWND hWnd)
+{
+	if (!hWnd) return L"";
+
+	wchar_t title[256] = { 0 };
+	int len = ::GetWindowTextW(hWnd, title, 256);
+
+	return (len > 0) ? std::wstring(title) : L"";
 }
 
 // Win32 WndProc

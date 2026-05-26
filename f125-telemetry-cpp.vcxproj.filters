@@ -108,6 +108,9 @@
     <ClInclude Include="Packets\F125Packets.h">
       <Filter>헤더 파일\Packets</Filter>
     </ClInclude>
+    <ClInclude Include="IconsFontAwesome6.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
