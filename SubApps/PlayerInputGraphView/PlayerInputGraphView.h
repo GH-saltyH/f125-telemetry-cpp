@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "../../WinManager.h"
+#include <algorithm>
 
 // =====================================
 // 원형 버퍼  ImPlot PlotLine offset 파라미터 활용
@@ -41,7 +42,28 @@ private:
 	ScrollingBuffer m_brakeBuf{ MAX_DATA_POINTS };
 	ScrollingBuffer m_steerBuf{ MAX_DATA_POINTS };
 
+	std::vector<float> m_steerNormalizedCache;		// 0 - 1 정규화 전용 버퍼
+
+	bool m_overlayMode = true;		// 오버레이 모드
+
 public:
 	PlayerInputGraphView() : IInfoWindow("Player Input Traces (60Hz)") {}
+
+	// 스타일 정의 (투명 배경 그래프 뷰)
+	SubAppStyle GetStyle() const override {
+		if (m_overlayMode) {
+			return SubAppStyle::GameOverlay();
+		}
+		else
+		{
+			SubAppStyle style = SubAppStyle::SemiTransparent();
+
+			// 추가 커스터마이징
+			style.hideTitleBar = true;
+			style.transparentViewport = true;
+			return style;
+		}
+	}
+
 	void UpdateAndRender(const CarTelemetryData& telemetry, float sessionTime) override;
 };

@@ -139,6 +139,7 @@
     <ClInclude Include="external\imgui\imstb_truetype.h" />
     <ClInclude Include="external\implot\implot.h" />
     <ClInclude Include="external\implot\implot_internal.h" />
+    <ClInclude Include="IconsFontAwesome6.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="Packets\F125Packets.h" />
     <ClInclude Include="SubApps\PlayerInputGraphView\PlayerInputGraphView.h" />
